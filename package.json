@@ -1,0 +1,18 @@
+{
+  "name": "api-forge",
+  "version": "1.0.0",
+  "description": "Single API key gateway that dynamically routes prompts across models based on complexity, to reduce token/cost usage — inspired by OpenRouter.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test:local": "node test/localTest.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
