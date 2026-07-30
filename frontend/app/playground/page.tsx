@@ -21,6 +21,7 @@ import { useToast } from '@/components/toast'
 import { PageHeader } from '@/components/page-header'
 import { RoutingCard } from '@/components/routing-card'
 import { ErrorBanner } from '@/components/error-banner'
+import { ProtectedRoute } from '@/components/protected-route'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -55,6 +56,14 @@ function useSavedKeys() {
 }
 
 export default function PlaygroundPage() {
+  return (
+    <ProtectedRoute>
+      <PlaygroundContent />
+    </ProtectedRoute>
+  )
+}
+
+function PlaygroundContent() {
   const { toast } = useToast()
   const savedKeys = useSavedKeys()
 

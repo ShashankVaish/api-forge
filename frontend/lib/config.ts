@@ -1,8 +1,7 @@
 // Base URL for the API Forge backend. Override via NEXT_PUBLIC_API_FORGE_BASE_URL.
 export const API_BASE_URL =
-  'http://localhost:3001'; `||
-  process.env.NEXT_PUBLIC_API_FORGE_BASE_URL?.replace(/\/$/, '') `
-  
+  process.env.NEXT_PUBLIC_API_FORGE_BASE_URL?.replace(/\/$/, '') ||
+  'http://localhost:3001'
 
 // The full list of models accepted by POST /v1/chat/completions.
 export const MODELS = [

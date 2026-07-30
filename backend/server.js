@@ -38,7 +38,7 @@ const keyStore = require("./src/keystore/keyStore");
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // CORS: must echo a SPECIFIC origin (not "*") and allow credentials, since
 // the OAuth session relies on a cookie being sent cross-origin from the

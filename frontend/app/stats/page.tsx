@@ -11,6 +11,7 @@ import {
 import { api, ApiError, type Stats } from '@/lib/api'
 import { PageHeader } from '@/components/page-header'
 import { ErrorBanner } from '@/components/error-banner'
+import { ProtectedRoute } from '@/components/protected-route'
 import { Button } from '@/components/ui/button'
 import { Card, Skeleton } from '@/components/ui/primitives'
 import { cn } from '@/lib/utils'
@@ -116,6 +117,14 @@ function StatCard({
 }
 
 export default function StatsPage() {
+  return (
+    <ProtectedRoute>
+      <StatsContent />
+    </ProtectedRoute>
+  )
+}
+
+function StatsContent() {
   const { data, error, isLoading, mutate, isValidating } = useSWR(
     'stats',
     () => api.stats(),
