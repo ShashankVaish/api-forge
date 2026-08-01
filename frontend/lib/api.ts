@@ -63,6 +63,16 @@ export interface Stats {
   estimatedSavingsPercent: number
 }
 
+export interface AuthUser {
+  id: string
+  provider: string
+  providerId: string
+  email: string
+  name: string
+  avatarUrl: string
+  createdAt: string
+}
+
 // ---- Error handling ----
 
 export class ApiError extends Error {
@@ -78,6 +88,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
+      // Session-cookie auth: send cookies with every request by default.
+      // The chat endpoint opts out with `credentials: 'omit'` since it
+      // authenticates via the Authorization: Bearer <forge_key> header only.
+      credentials: 'include',
       ...init,
       headers: {
         'Content-Type': 'application/json',
@@ -131,9 +145,23 @@ export const api = {
   chat: (forgeKey: string, model: string, messages: ChatMessage[]) =>
     request<ChatCompletion>('/v1/chat/completions', {
       method: 'POST',
+      // Bearer-only: do NOT send session cookies for this endpoint.
+      credentials: 'omit',
       headers: { Authorization: `Bearer ${forgeKey}` },
       body: JSON.stringify({ model, messages }),
     }),
 
   stats: () => request<Stats>('/v1/stats'),
+
+  // ---- Session auth (Passport.js, cookie-based) ----
+  me: () => request<{ user: AuthUser }>('/auth/me'),
+
+  logout: () => request<{ loggedOut: boolean }>('/auth/logout', {
+    method: 'POST',
+  }),
+}
+
+// OAuth login is a real browser redirect, not a fetch call.
+export function oauthStartUrl(provider: 'google' | 'github') {
+  return `${API_BASE_URL}/auth/${provider}`
 }

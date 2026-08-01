@@ -217,3 +217,56 @@ needs `ANTHROPIC_API_KEY`, paid) | `groq-fast` | `groq-strong` (Groq — free)
 | `gemini-flash` | `gemini-pro` (Gemini — free, currently has known
 provider-side issues, see note above) | `mistral-small` | `mistral-large`
 (Mistral — free tier available)
+
+---
+
+## Authentication (Google / GitHub OAuth) — IMPORTANT UPDATE
+
+Key management (`POST /v1/keys`, `GET /v1/keys`, `DELETE /v1/keys/:id`) now
+requires the developer to be **logged in** via Google or GitHub. Each Forge
+key is owned by the developer who created it — no one can see or revoke
+another developer's keys.
+
+### 1. Set up OAuth apps
+
+**Google:** https://console.cloud.google.com/apis/credentials
+→ Create OAuth client ID → Web application
+→ Authorized redirect URI: `http://localhost:3001/auth/google/callback`
+
+**GitHub:** https://github.com/settings/developers → New OAuth App
+→ Authorization callback URL: `http://localhost:3001/auth/github/callback`
+
+Put the resulting client IDs/secrets in `.env` (see `.env.example`), along
+with a random `SESSION_SECRET`, and set `FRONTEND_URL` to wherever your
+frontend runs (e.g. `http://localhost:5173`).
+
+### 2. Login flow (for your frontend)
+
+- **"Login with Google" button** → full-page redirect (not fetch) to:
+  `http://localhost:3001/auth/google`
+- **"Login with GitHub" button** → full-page redirect to:
+  `http://localhost:3001/auth/github`
+- After successful login, the backend redirects the browser to
+  `${FRONTEND_URL}/dashboard`.
+- On that dashboard page (and anywhere you need to know who's logged in),
+  call `GET /auth/me` **with `credentials: 'include'`** in fetch/axios, so
+  the session cookie is sent. Returns `{ user: {...} }` if logged in, or
+  401 if not.
+- **Logout:** `POST /auth/logout` with `credentials: 'include'`.
+
+**Every call to `/v1/keys` (POST/GET/DELETE) from your frontend must also
+include `credentials: 'include'`** so the session cookie is sent — without
+it you'll get 401 "Not authenticated" even after logging in.
+
+### 3. `/v1/chat/completions` is unaffected
+
+This endpoint still authenticates purely via the Forge key
+(`Authorization: Bearer <forge_key>`) — no session/cookie needed there,
+since it's meant to be called from a developer's own backend/app, not a
+logged-in browser.
+
+### New files
+
+- `src/auth/userStore.js` — stores developer accounts (`data/users.json`)
+- `src/auth/passportConfig.js` — Google + GitHub Passport strategies
+- `src/auth/authMiddleware.js` — `requireAuth` guard used on `/v1/keys` routes

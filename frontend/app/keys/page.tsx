@@ -16,6 +16,7 @@ import { useToast } from '@/components/toast'
 import { PageHeader } from '@/components/page-header'
 import { Modal } from '@/components/modal'
 import { ErrorBanner } from '@/components/error-banner'
+import { ProtectedRoute } from '@/components/protected-route'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -51,6 +52,14 @@ function CopyButton({ value }: { value: string }) {
 }
 
 export default function KeysPage() {
+  return (
+    <ProtectedRoute>
+      <KeysPageContent />
+    </ProtectedRoute>
+  )
+}
+
+function KeysPageContent() {
   const { toast } = useToast()
   const { data, error, isLoading, mutate } = useSWR('keys', () =>
     api.listKeys(),
