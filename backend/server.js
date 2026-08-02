@@ -55,14 +55,17 @@ app.use((req, res, next) => {
 // Session (backs Passport's login state). MemoryStore is fine for a
 // demo/prototype; swap for a persistent store (e.g. connect-redis) if you
 // deploy this for real, since MemoryStore resets on every server restart.
+app.set("trust proxy", 1);
+
 app.use(session({
   secret: process.env.SESSION_SECRET || "dev-secret-change-me",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: process.env.NODE_ENV === "production",
   },
 }));
 app.use(passport.initialize());
