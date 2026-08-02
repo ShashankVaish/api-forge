@@ -1,0 +1,13 @@
+services:
+  api-forge:
+    build: .
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    volumes:
+      - forge-data:/app/data   # persists forgeKeys.json/users.json/conversations.json
+    restart: unless-stopped
+
+volumes:
+  forge-data:
