@@ -8,6 +8,9 @@
  */
 
 const TIER_CONFIG = {
+  // "auto" mode tiers — now split across Groq AND Mistral, both free,
+  // so complexity-based routing visibly demonstrates multi-provider
+  // switching (useful for demos).
   simple: {
     provider: "groq",
     model: "llama-3.1-8b-instant",
@@ -15,10 +18,10 @@ const TIER_CONFIG = {
     approxCostPer1kTokens: 0.0002,
   },
   moderate: {
-    provider: "groq",
-    model: "llama-3.3-70b-versatile",
-    label: "Groq Llama 3.3 70B (balanced)",
-    approxCostPer1kTokens: 0.001,
+    provider: "mistral",
+    model: "mistral-small-latest",
+    label: "Mistral Small (balanced)",
+    approxCostPer1kTokens: 0.0005,
   },
   complex: {
     provider: "groq",
@@ -26,9 +29,10 @@ const TIER_CONFIG = {
     label: "Groq Llama 3.3 70B (max capability, free tier)",
     approxCostPer1kTokens: 0.001,
   },
+
   // Anthropic tiers kept available for explicit use once credits exist —
-  // just not used as the "auto" default anymore, since Anthropic requires
-  // a paid/funded account (no meaningful free tier).
+  // just not used as the "auto" default, since Anthropic requires a
+  // paid/funded account (no meaningful free tier).
   haiku: {
     provider: "anthropic",
     model: "claude-haiku-4-5-20251001",
