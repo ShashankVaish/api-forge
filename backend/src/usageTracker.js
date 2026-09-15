@@ -34,7 +34,10 @@ function getStats() {
   let actualCost = 0;
   for (const tier of Object.keys(state.byTier)) {
     const count = state.byTier[tier];
-    const rate = TIER_CONFIG[tier].approxCostPer1kTokens;
+    // Guard: TIER_CONFIG only has entries for simple/moderate/complex. An
+    // unknown tier here would throw and take /v1/stats down, so fall back to
+    // the moderate rate rather than crashing the endpoint.
+    const rate = (TIER_CONFIG[tier] || TIER_CONFIG.moderate).approxCostPer1kTokens;
     actualCost += count * avgTokensPerRequest * (rate / 1000);
   }
 

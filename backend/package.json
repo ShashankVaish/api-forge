@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test:local": "node test/localTest.js"
+    "test:local": "node test/localTest.js",
+    "test:complexity": "node test/complexityTest.js",
+    "analyze": "node test/analyze.js"
   },
   "dependencies": {
     "express": "^4.19.2",

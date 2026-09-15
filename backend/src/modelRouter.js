@@ -13,6 +13,7 @@
 const { analyzeComplexity } = require("./complexityAnalyzer");
 const { getConfigForTier, getConfigForExplicitModel } = require("./config/models");
 const providerKeys = require("./config/providerKeys");
+const { logDecision } = require("./routingLogger");
 
 const providers = {
   anthropic: require("./providers/anthropicProvider"),
@@ -31,8 +32,12 @@ async function routeRequest({ messages, requestedModel = "auto" }) {
   const lastUserMessage = [...messages].reverse().find(m => m.role === "user");
   const promptText = lastUserMessage ? lastUserMessage.content : "";
 
+  // The full `messages` array is passed through so the analyzer can measure
+  // real conversation volume (6 one-word turns are not 6 long ones) and hold
+  // a tier across follow-ups like "continue", which score 0 on their own.
   const analysis = analyzeComplexity(promptText, {
     contextMessageCount: messages.length,
+    messages,
   });
 
   let config;
@@ -88,22 +93,32 @@ async function routeRequest({ messages, requestedModel = "auto" }) {
 
   const latencyMs = Date.now() - start;
 
+  const routing = {
+    routedBy,               // "complexity-analysis" or "explicit-request"
+    tier: analysis.tier,
+    complexityScore: analysis.score,
+    difficulty: analysis.difficulty,   // how much reasoning is needed
+    size: analysis.size,               // how many tokens flow in and out
+    confidence: analysis.confidence,   // 0-1, distance from a tier cutoff
+    estimatedInputTokens: analysis.signals.conversationTokens,
+    estimatedOutputTokens: analysis.signals.expectedOutputTokens,
+    reasons: analysis.reasons,
+    provider: config.provider,
+    model: config.model,
+    modelLabel: config.label,
+    estimatedCostPer1kTokens: config.approxCostPer1kTokens,
+    latencyMs,
+    usedFallback,
+    fallbackReason,
+  };
+
+  // Fire-and-forget: hashed, never the prompt text itself.
+  logDecision({ promptText, routing, usage: result.usage });
+
   return {
     text: result.text,
     usage: result.usage,
-    routing: {
-      routedBy,               // "complexity-analysis" or "explicit-request"
-      tier: analysis.tier,
-      complexityScore: analysis.score,
-      reasons: analysis.reasons,
-      provider: config.provider,
-      model: config.model,
-      modelLabel: config.label,
-      estimatedCostPer1kTokens: config.approxCostPer1kTokens,
-      latencyMs,
-      usedFallback,
-      fallbackReason,
-    },
+    routing,
   };
 }
 

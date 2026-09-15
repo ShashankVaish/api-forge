@@ -18,8 +18,17 @@ const tierBadge: Record<RoutingInfo['tier'], 'simple' | 'moderate' | 'complex'> 
     complex: 'complex',
   }
 
+const clamp = (n: number) => Math.max(0, Math.min(100, n ?? 0))
+
 export function RoutingCard({ routing }: { routing: RoutingInfo }) {
-  const score = Math.max(0, Math.min(100, routing.complexityScore))
+  // Two axes, because they mean different things: difficulty picks the model,
+  // size drives cost and which context windows can even fit the request.
+  // Older responses only carried `complexityScore`, so fall back to it.
+  const difficulty = clamp(routing.difficulty ?? routing.complexityScore)
+  const size = clamp(routing.size)
+  const hasSize = routing.size !== undefined && routing.size !== null
+  const isBorderline =
+    routing.confidence !== undefined && routing.confidence < 0.3
 
   return (
     <div className="rounded-xl border border-border bg-background/60 p-4">
@@ -43,21 +52,52 @@ export function RoutingCard({ routing }: { routing: RoutingInfo }) {
         </div>
       </div>
 
-      {/* Complexity gauge */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Complexity score</span>
-          <span className="font-mono text-foreground">{score}/100</span>
+      {/* Complexity gauges — difficulty and size are scored separately */}
+      <div className="mt-4 space-y-3">
+        <div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              Difficulty
+              {isBorderline && (
+                <span
+                  className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground"
+                  title="Score sat close to a tier cutoff, so it was rounded up"
+                >
+                  borderline
+                </span>
+              )}
+            </span>
+            <span className="font-mono text-foreground">{difficulty}/100</span>
+          </div>
+          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all',
+                tierColor[routing.tier],
+              )}
+              style={{ width: `${difficulty}%` }}
+            />
+          </div>
         </div>
-        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all',
-              tierColor[routing.tier],
-            )}
-            style={{ width: `${score}%` }}
-          />
-        </div>
+
+        {hasSize && (
+          <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Size</span>
+              <span className="font-mono text-foreground">
+                {routing.estimatedInputTokens != null
+                  ? `~${routing.estimatedInputTokens} in / ~${routing.estimatedOutputTokens} out`
+                  : `${size}/100`}
+              </span>
+            </div>
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-muted-foreground/50 transition-all"
+                style={{ width: `${size}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Metrics */}

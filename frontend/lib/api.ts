@@ -33,7 +33,16 @@ export interface ChatMessage {
 export interface RoutingInfo {
   routedBy: string
   tier: 'simple' | 'moderate' | 'complex'
+  /** Kept for compatibility — same value as `difficulty`. */
   complexityScore: number
+  /** 0-100: how much reasoning the prompt needs. Picks the tier. */
+  difficulty: number
+  /** 0-100: how many tokens flow in and out. Drives cost + context window. */
+  size: number
+  /** 0-1: how far the score sits from a tier cutoff. Low = borderline. */
+  confidence: number
+  estimatedInputTokens: number
+  estimatedOutputTokens: number
   reasons: string[]
   provider: string
   model: string
