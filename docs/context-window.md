@@ -1,7 +1,12 @@
 # Context Window — What It Is and How to Handle It Across Providers
 
-**Code this affects:** `backend/src/modelRouter.js`,
-`backend/src/config/models.js`, `backend/src/providers/*.js`
+**Code this affects:** `backend/src/contextManager.js` (the logic),
+`backend/src/modelRouter.js`, `backend/src/config/models.js`,
+`backend/src/config/contextConfig.js`, `backend/src/providers/*.js`
+
+> **Status:** implemented — see `docs/task-context-window.md` for the design
+> decisions and what was verified live. Run `npm run test:context` and
+> `npm run test:router` in `backend/`.
 
 ---
 
@@ -329,7 +334,7 @@ provider-specific optimization — worth putting behind a
 
 | Provider | Things to watch |
 | --- | --- |
-| **Groq** | Smallest window of your four. Also has strict per-minute token limits, so a big request can be rejected for rate reasons even when it fits. |
+| **Groq** | Smallest window of your four. **Free tier caps every single request at 8,000 tokens** (input + max_tokens) — 16× below the window. Set `GROQ_MAX_REQUEST_TOKENS=8000` so trimming targets the real limit. |
 | **Mistral** | Input and output share one budget. A long input directly shrinks the possible answer. |
 | **Anthropic** | `max_tokens` is **required** — you cannot leave it out. Largest window after Gemini. |
 | **Gemini** | By far the biggest window. Uses a different message format (your adapter already converts `assistant` → `model`). Images and files consume tokens too, at a different rate than text. |

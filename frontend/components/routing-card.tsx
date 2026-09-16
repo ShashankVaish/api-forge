@@ -1,6 +1,15 @@
 'use client'
 
-import { Cpu, Clock, DollarSign, GitBranch, AlertTriangle } from 'lucide-react'
+import {
+  Cpu,
+  Clock,
+  DollarSign,
+  GitBranch,
+  AlertTriangle,
+  Scissors,
+  ArrowUpRight,
+  Layers,
+} from 'lucide-react'
 import type { RoutingInfo } from '@/lib/api'
 import { Badge } from '@/components/ui/primitives'
 import { cn } from '@/lib/utils'
@@ -20,6 +29,14 @@ const tierBadge: Record<RoutingInfo['tier'], 'simple' | 'moderate' | 'complex'> 
 
 const clamp = (n: number) => Math.max(0, Math.min(100, n ?? 0))
 
+/** 131072 -> "131k", 1048576 -> "1.0M", 950 -> "950". */
+function fmtTokens(n: number | undefined | null): string {
+  if (n == null) return '—'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`
+  return String(n)
+}
+
 export function RoutingCard({ routing }: { routing: RoutingInfo }) {
   // Two axes, because they mean different things: difficulty picks the model,
   // size drives cost and which context windows can even fit the request.
@@ -29,6 +46,17 @@ export function RoutingCard({ routing }: { routing: RoutingInfo }) {
   const hasSize = routing.size !== undefined && routing.size !== null
   const isBorderline =
     routing.confidence !== undefined && routing.confidence < 0.3
+
+  // Context-window section. Older backend responses have no `context`, so
+  // every read below is guarded and the block is skipped when it's absent.
+  const ctx = routing.context
+  const utilizationPct = ctx ? Math.round(clamp(ctx.utilization * 100)) : 0
+  const utilizationTone =
+    utilizationPct >= 90
+      ? 'bg-chart-2'
+      : utilizationPct >= 70
+        ? 'bg-chart-3'
+        : 'bg-primary'
 
   return (
     <div className="rounded-xl border border-border bg-background/60 p-4">
@@ -49,8 +77,26 @@ export function RoutingCard({ routing }: { routing: RoutingInfo }) {
               Fallback used
             </Badge>
           )}
+          {routing.truncated && (
+            <Badge variant="warning">
+              <Scissors className="size-3" />
+              Answer cut off
+            </Badge>
+          )}
         </div>
       </div>
+
+      {/* Truncation warning — never hide a cut-off answer */}
+      {routing.truncated && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-chart-2/40 bg-chart-2/10 p-2.5 text-xs text-chart-2">
+          <Scissors className="mt-0.5 size-3.5 shrink-0" />
+          <p className="leading-relaxed">
+            The model hit its output limit ({fmtTokens(routing.maxTokensOut)}{' '}
+            tokens) before finishing. Ask it to continue, or send a higher{' '}
+            <code className="font-mono">max_tokens</code>.
+          </p>
+        </div>
+      )}
 
       {/* Complexity gauges — difficulty and size are scored separately */}
       <div className="mt-4 space-y-3">
@@ -99,6 +145,74 @@ export function RoutingCard({ routing }: { routing: RoutingInfo }) {
           </div>
         )}
       </div>
+
+      {/* Context window */}
+      {ctx && (
+        <div className="mt-4 rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Layers className="size-3" />
+              Context window
+            </span>
+            <span
+              className="font-mono text-foreground"
+              title={
+                ctx.nominalContextWindow > ctx.contextWindow
+                  ? `Provider caps each request at ${fmtTokens(ctx.contextWindow)} tokens; the model itself supports ${fmtTokens(ctx.nominalContextWindow)}.`
+                  : undefined
+              }
+            >
+              ~{fmtTokens(ctx.inputTokens)} / {fmtTokens(ctx.contextWindow)}
+              {ctx.nominalContextWindow > ctx.contextWindow && (
+                <span className="ml-1 text-muted-foreground">
+                  (capped from {fmtTokens(ctx.nominalContextWindow)})
+                </span>
+              )}
+              <span className="ml-1 text-muted-foreground">
+                ({utilizationPct}%)
+              </span>
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn('h-full rounded-full transition-all', utilizationTone)}
+              style={{ width: `${Math.max(utilizationPct, 1)}%` }}
+            />
+          </div>
+
+          {(ctx.upgradedModel || ctx.retriedOnContextError || ctx.trimmed) && (
+            <ul className="mt-2.5 space-y-1 text-xs text-muted-foreground">
+              {ctx.upgradedModel && (
+                <li className="flex items-center gap-1.5">
+                  <ArrowUpRight className="size-3 shrink-0 text-primary" />
+                  Switched to a bigger-window model because the tier default
+                  could not fit this request.
+                </li>
+              )}
+              {ctx.retriedOnContextError && (
+                <li className="flex items-center gap-1.5">
+                  <ArrowUpRight className="size-3 shrink-0 text-primary" />
+                  Upstream rejected the prompt as too long; retried on a larger
+                  model.
+                </li>
+              )}
+              {ctx.trimmed && (
+                <li className="flex items-start gap-1.5">
+                  <Scissors className="mt-0.5 size-3 shrink-0 text-primary" />
+                  <span>
+                    Trimmed {ctx.trimmed.droppedMessages} older message
+                    {ctx.trimmed.droppedMessages === 1 ? '' : 's'} (~
+                    {fmtTokens(ctx.trimmed.droppedTokens)} tokens)
+                    {ctx.trimmed.strategy === 'summarized'
+                      ? ` — summarised by ${ctx.trimmed.summarizedBy ?? 'the cheap tier'} instead of dropped.`
+                      : ' to fit the window.'}
+                  </span>
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="mt-4 grid grid-cols-3 gap-2 text-xs">

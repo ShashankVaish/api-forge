@@ -2,11 +2,13 @@
  * geminiProvider.js
  *
  * Adapter for Google's Gemini API. Same shape as every other provider:
- * call(model, messages, apiKey) -> { text, usage }.
+ *   call(model, messages, apiKey, options) -> { text, usage, finishReason }
  *
  * Gemini's REST API expects "contents" with role "user"/"model" (not
  * "assistant"), so we translate our internal OpenAI-style message format
- * into Gemini's shape before sending.
+ * into Gemini's shape before sending. The output ceiling goes in
+ * generationConfig.maxOutputTokens, and finishReason "MAX_TOKENS" is the
+ * truncation signal.
  *
  * Auth note (important, as of 2026): Google is migrating Gemini API keys
  * from the legacy "Standard key" format (starts "AIzaSy...") to a new
@@ -20,24 +22,35 @@
  * https://discuss.ai.google.dev for current status.
  */
 
+const { providerError } = require("./shared");
+
 function toGeminiContents(messages) {
   return messages
-    .filter(m => m.role !== "system")
-    .map(m => ({
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
 }
 
-async function call(model, messages, apiKey) {
+function normalizeGeminiFinish(reason) {
+  if (reason === "STOP") return "stop";
+  if (reason === "MAX_TOKENS") return "length";
+  return "other";
+}
+
+async function call(model, messages, apiKey, options = {}) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-  const systemMessage = messages.find(m => m.role === "system");
+  const systemParts = messages.filter((m) => m.role === "system").map((m) => m.content);
 
   const body = {
     contents: toGeminiContents(messages),
-    ...(systemMessage
-      ? { systemInstruction: { parts: [{ text: systemMessage.content }] } }
+    ...(systemParts.length
+      ? { systemInstruction: { parts: [{ text: systemParts.join("\n\n") }] } }
+      : {}),
+    ...(options.maxOutputTokens
+      ? { generationConfig: { maxOutputTokens: options.maxOutputTokens } }
       : {}),
   };
 
@@ -51,15 +64,14 @@ async function call(model, messages, apiKey) {
   });
 
   if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errText}`);
+    throw await providerError("Gemini", response);
   }
 
   const data = await response.json();
+  const candidate = data.candidates?.[0];
 
-  const text = (data.candidates || [])
-    .flatMap(c => c.content?.parts || [])
-    .map(p => p.text || "")
+  const text = (candidate?.content?.parts || [])
+    .map((p) => p.text || "")
     .join("\n");
 
   return {
@@ -68,9 +80,8 @@ async function call(model, messages, apiKey) {
       input_tokens: data.usageMetadata?.promptTokenCount ?? null,
       output_tokens: data.usageMetadata?.candidatesTokenCount ?? null,
     },
+    finishReason: normalizeGeminiFinish(candidate?.finishReason),
   };
 }
 
 module.exports = { call };
-
-

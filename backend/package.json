@@ -8,7 +8,11 @@
     "dev": "node --watch server.js",
     "test:local": "node test/localTest.js",
     "test:complexity": "node test/complexityTest.js",
-    "analyze": "node test/analyze.js"
+    "analyze": "node test/analyze.js",
+    "test:context": "node test/contextTest.js",
+    "test:router": "node test/routerTest.js",
+    "test": "npm run test:complexity && npm run test:context && npm run test:router && npm run test:schema",
+    "test:schema": "node test/schemaTest.js"
   },
   "dependencies": {
     "express": "^4.19.2",

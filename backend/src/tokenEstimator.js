@@ -42,14 +42,24 @@ function estimateTokens(text) {
   return Math.ceil(cjkCount + remaining / divisor);
 }
 
+// ~4 tokens of per-message overhead for role markers and separators.
+const MESSAGE_OVERHEAD_TOKENS = 4;
+
+/** Rough token count for one chat message, overhead included. */
+function estimateMessageTokens(message) {
+  return estimateTokens(message?.content) + MESSAGE_OVERHEAD_TOKENS;
+}
+
 /** Rough token count across a whole messages array. */
 function estimateMessagesTokens(messages) {
   if (!Array.isArray(messages)) return 0;
-  // ~4 tokens of per-message overhead for role markers and separators.
-  return messages.reduce(
-    (total, m) => total + estimateTokens(m?.content) + 4,
-    0,
-  );
+  return messages.reduce((total, m) => total + estimateMessageTokens(m), 0);
 }
 
-module.exports = { estimateTokens, estimateMessagesTokens, looksLikeCode };
+module.exports = {
+  estimateTokens,
+  estimateMessageTokens,
+  estimateMessagesTokens,
+  looksLikeCode,
+  MESSAGE_OVERHEAD_TOKENS,
+};

@@ -59,6 +59,14 @@ function logDecision({ promptText, routing, usage }) {
       actualInputTokens: usage?.input_tokens ?? null,
       actualOutputTokens: usage?.output_tokens ?? null,
       usedFallback: routing.usedFallback,
+      truncated: routing.truncated ?? null,
+      contextWindow: routing.context?.contextWindow ?? null,
+      utilization: routing.context?.utilization ?? null,
+      upgradedModel: routing.context?.upgradedModel ?? null,
+      trimmed: routing.context?.trimmed
+        ? { messages: routing.context.trimmed.droppedMessages, strategy: routing.context.trimmed.strategy }
+        : null,
+      retriedOnContextError: routing.context?.retriedOnContextError ?? null,
     });
 
     fs.appendFileSync(LOG_FILE, line + "\n");
