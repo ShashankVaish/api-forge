@@ -147,7 +147,8 @@ app.delete("/v1/keys/:id", requireAuth, (req, res) => {
  * {
  *   "model": "auto" | "haiku" | "sonnet" | "opus" | "groq-fast" | "groq-strong"
  *           | "gemini-flash" | "gemini-pro" | "mistral-small" | "mistral-large",
- *   "messages": [{ "role": "user", "content": "..." }]
+ *   "messages": [{ "role": "user", "content": "..." }],
+ *   "max_tokens": 1024        // optional, upper bound on the answer
  * }
  *
  * Auth: `Authorization: Bearer <forge_key>` — the developer's OWN Forge
@@ -169,12 +170,18 @@ app.post("/v1/chat/completions", async (req, res) => {
       return res.status(401).json({ error: "Invalid or revoked API Forge key" });
     }
 
-    const { model = "auto", messages } = req.body;
+    // `max_tokens` mirrors OpenAI's field: an upper bound on the answer.
+    // It can lower the ceiling the context manager picks, never raise it.
+    const { model = "auto", messages, max_tokens } = req.body;
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "`messages` array is required" });
     }
 
-    const result = await routeRequest({ messages, requestedModel: model });
+    const result = await routeRequest({
+      messages,
+      requestedModel: model,
+      maxTokens: Number.isFinite(max_tokens) ? max_tokens : null,
+    });
 
     usageTracker.record({ tier: result.routing.tier, usage: result.usage });
     keyStore.recordUsage(forgeKey, {
@@ -193,7 +200,19 @@ app.post("/v1/chat/completions", async (req, res) => {
     });
   } catch (err) {
     console.error("Error in /v1/chat/completions:", err.message);
-    res.status(502).json({ error: err.message });
+    // Errors that carry a real HTTP status (413 "too large", 503 "no model
+    // available") pass it through; anything else is an upstream failure.
+    const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 600
+      ? err.status
+      : 502;
+    const body = { error: err.message };
+    if (err.name === "ContextTooLargeError") {
+      body.code = "context_too_large";
+      body.inputTokens = err.inputTokens;
+      body.contextWindow = err.contextWindow;
+      body.model = err.model;
+    }
+    res.status(status).json(body);
   }
 });
 

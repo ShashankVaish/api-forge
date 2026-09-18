@@ -30,11 +30,52 @@ export interface ChatMessage {
   content: string
 }
 
+/** What the context manager did to make the request fit its model. */
+export interface ContextInfo {
+  /** Estimated tokens actually sent (after any trimming). */
+  inputTokens: number
+  /** Estimated tokens before trimming. */
+  originalInputTokens: number
+  reservedOutputTokens: number
+  /** The limit decisions were made against: min(model window, provider per-request cap). */
+  contextWindow: number
+  /** The model's own window; larger than contextWindow when a provider cap applies. */
+  nominalContextWindow: number
+  /** 0-1: padded input as a share of contextWindow. */
+  utilization: number
+  /** True if a bigger-window model was chosen because the tier default did not fit. */
+  upgradedModel: boolean
+  trimmed: {
+    droppedMessages: number
+    droppedTokens: number
+    strategy: 'sliding-window' | 'summarized'
+    summaryTokens?: number
+    summarizedBy?: string
+  } | null
+  /** True if upstream rejected the prompt as too long and we retried bigger. */
+  retriedOnContextError: boolean
+}
+
 export interface RoutingInfo {
   routedBy: string
   tier: 'simple' | 'moderate' | 'complex'
+  /** Kept for compatibility — same value as `difficulty`. */
   complexityScore: number
+  /** 0-100: how much reasoning the prompt needs. Picks the tier. */
+  difficulty: number
+  /** 0-100: how many tokens flow in and out. Drives cost + context window. */
+  size: number
+  /** 0-1: how far the score sits from a tier cutoff. Low = borderline. */
+  confidence: number
+  estimatedInputTokens: number
+  estimatedOutputTokens: number
   reasons: string[]
+  /** True when the model hit its output cap — the answer was cut off. */
+  truncated: boolean
+  finishReason: 'stop' | 'length' | 'other'
+  /** The max_tokens ceiling actually sent upstream. */
+  maxTokensOut: number
+  context: ContextInfo
   provider: string
   model: string
   modelLabel: string
